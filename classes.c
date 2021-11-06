@@ -451,7 +451,7 @@ struct tab *split_path(const char *path){
   //create res tab
   struct tab *res = calloc(1,sizeof(struct tab));
   //copy path into copy for manipulating
-  char *copy = malloc((strlen(path)+1)*sizeof(char*));
+  char *copy = malloc((strlen(path)+1)*sizeof(char));
   strcpy(copy,path);
   printf("copy : %s\n",copy);
 	
@@ -576,22 +576,20 @@ char *hierarchy_get_path_to(const struct oo_hierarchy *self, const char *name) {
   if (strcmp(name,"Object")==0){return "Object";}
 
   if (!class_contains_class(self->root,name)){printf("The requested class '%s' does not exist!",name);return NULL;}
-	
   int total_size=0;
   size_t max_depth = class_depth(self->root);
   int indexes[max_depth];
-  size_t n = 0;
+  int n = 0;
 
   struct oo_class *curr = get_class(self->root,name);
   struct oo_class *prev = curr;
-  assert(curr != NULL);
-  total_size += strlen(curr->name)+1;
-	
-  while(curr->parent != NULL){
+  assert(curr!=NULL);
+  total_size+=strlen(curr->name)+1;
+  while(curr->parent!=NULL){
     curr=curr->parent;
     total_size+=strlen(curr->name)+1;
 
-    for (size_t i = 0; i < curr->size; i++){
+    for (size_t i = 0; i<curr->size;i++){
       if(strcmp(curr->children[i]->name,prev->name)==0){
         indexes[n]=i;
         break;
@@ -606,14 +604,14 @@ char *hierarchy_get_path_to(const struct oo_hierarchy *self, const char *name) {
   curr = self->root;
   strcpy(s,curr->name);
 
-  for (size_t j = n-1; j != 0; j--){
+  for (int j =n-1 ;  j>=0;j--){
     strcat(s,"/\0");
     strcat(s,curr->children[indexes[j]]->name);
     curr=curr->children[indexes[j]];
-  }
-	//struct tab *res = split_path(s);
-  
-	return s;
+  } 
+	struct tab *z = split_path(s);
+	
+  return s;
 }
 
 
