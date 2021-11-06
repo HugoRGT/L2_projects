@@ -272,8 +272,8 @@ void class_add_child(struct oo_class *self,const char *name){
   new->capacity = 10;
   
   //Set children class/name
-  new->children = calloc(new->capacity,sizeof(struct oo_class**));
-  new->name = malloc(strlen(name)+1 * sizeof(char));
+  new->children = calloc(new->capacity,sizeof(struct oo_class*));
+  new->name = malloc((strlen(name)+1) * sizeof(char*));
   strcpy(new->name,name);
   class_set_child(self,new);
 }
@@ -449,14 +449,14 @@ bool hierarchy_move_as_child_of(struct oo_hierarchy *self, const char *name, con
 struct tab *split_path(const char *path){
   if (path == NULL){return NULL;}
   //create res tab
-  struct tab *res = calloc(1,sizeof(struct tab));
+  struct tab *res = malloc(sizeof(struct tab));
   //copy path into copy for manipulating
   char *copy = malloc((strlen(path)+1)*sizeof(char));
   strcpy(copy,path);
   printf("copy : %s\n",copy);
 	
   int size = 0;
-  char **tab=calloc(1,sizeof(char*));
+  char **tab = malloc(sizeof(char*));
   char *ptr = strtok(copy,"/");
 	
   while(ptr != NULL){
@@ -474,7 +474,9 @@ struct tab *split_path(const char *path){
   for (size_t i = 0; i < res->size; ++i){
     printf("Res[%zu] = %s\n", i, res->args[i]);
   }
+	printf("%zu\n",res->size);
 	
+	free(tab);
   free(copy);
   return res;
 }
@@ -482,12 +484,15 @@ struct tab *split_path(const char *path){
 //[DONE]
 //Returns true if the path tab exists in the hierarchy
 bool path_exists(struct oo_hierarchy *self, struct tab *path){
-  for(size_t i = path->size-1; i > 0; --i){
-		if(!hierarchy_has_class(self,path->args[i]) || !hierarchy_is_child_of(self,path->args[i-1],path->args[i])){
-			return false;
+	bool ans = false;
+  for(size_t i = 0; i < path->size-1; ++i){
+		if(hierarchy_has_class(self,path->args[i]) && hierarchy_is_child_of(self,path->args[i],path->args[i+1])){
+			ans = true;
+		}else{
+			ans = false;
 		}
 	}
-	return true;
+	return ans;
 }
 
 //[DONE]
@@ -499,20 +504,12 @@ bool path_is_valid(struct oo_hierarchy *self,struct tab *path){
   if(path_exists(self,path)){
 		return true;
 	}
-		 
-	bool ans = false;
-	for(size_t i = 0; i > path->size-1; --i){
-		if(!hierarchy_has_class(self,path->args[i])){
-			ans = true;
-		}
-		if(hierarchy_has_class(self,path->args[i]) && hierarchy_is_child_of(self,path->args[i-1],path->args[i])){
-			ans = true;
-		}else{
-			ans = false;
+	for(size_t i = path->size; i > 0; --i){
+		if(hierarchy_has_class(self,path->args[i]) && !hierarchy_is_child_of(self,path->args[i-1],path->args[i])){
+			return false;
 		}
 	}
-	
-	return ans;
+	return true;
 }
 
 //[]
@@ -524,6 +521,35 @@ struct oo_class* get_class_from_path(struct oo_hierarchy *self,struct tab *path)
 	}
 	//struct oo_class *curr = get_class(self);
 	return NULL;
+}
+
+//REQUESTED[DONE]
+bool hierarchy_add_path(struct oo_hierarchy *self, const char *path) {
+	/*struct tab *path_tab = split_path(path);
+	printf("lol\n");
+	if(path_is_valid(self,path_tab)){
+		if(path_exists(self,path_tab)){
+			return true;
+		}
+		
+		for(size_t i = 0; i < path_tab->size; ++i){
+			if(i == 0 && self->root == NULL){
+				hierarchy_create(self);
+			}
+			if(!hierarchy_has_class(self,path_tab->args[i])){
+				hierarchy_add_child(self,path_tab->args[i],path_tab->args[i+1]);
+			}
+		}
+	
+	free(path_tab);*/
+  return false;
+}
+
+
+
+//REQUESTED
+bool hierarchy_add_path_as_child_of(struct oo_hierarchy *self, const char *path, const char *parent) {
+  return false;
 }
 
 
@@ -544,54 +570,31 @@ size_t class_depth(struct oo_class *self){
   return deepest+1;
 }
 
-
-
-//REQUESTED[DONE]
-bool hierarchy_add_path(struct oo_hierarchy *self, const char *path) {
-	struct tab *path_tab = split_path(path);
-	
-	if(path_is_valid(self,path_tab)){
-		if(path_exists(self,path_tab)){
-			return true;
-		}
-	}
-  return false;
-}
-
-
-
-//REQUESTED
-bool hierarchy_add_path_as_child_of(struct oo_hierarchy *self, const char *path, const char *parent) {
-  return false;
-}
-
-
-
 //REQUESTED[DONE]
 char *hierarchy_get_path_to(const struct oo_hierarchy *self, const char *name) {
   //allocate an int tab of size (depth of root) for successive indexes of children so keep all in memory as we go up
   //go up until parent ==NULL (i.e we reached root) from name and count how many times we go up (n)
   //allocate n*20+n chars of memory (+n for the '/' char in-between names)
 
-  if (strcmp(name,"Object")==0){return "Object";}
+  if (strcmp(name,"Object") == 0){return "Object";}
 
   if (!class_contains_class(self->root,name)){printf("The requested class '%s' does not exist!",name);return NULL;}
-  int total_size=0;
+  int total_size = 0;
   size_t max_depth = class_depth(self->root);
   int indexes[max_depth];
   int n = 0;
 
   struct oo_class *curr = get_class(self->root,name);
   struct oo_class *prev = curr;
-  assert(curr!=NULL);
-  total_size+=strlen(curr->name)+1;
-  while(curr->parent!=NULL){
-    curr=curr->parent;
-    total_size+=strlen(curr->name)+1;
+  assert(curr != NULL);
+  total_size += strlen(curr->name)+1;
+  while(curr->parent != NULL){
+    curr = curr->parent;
+    total_size += strlen(curr->name)+1;
 
-    for (size_t i = 0; i<curr->size;i++){
-      if(strcmp(curr->children[i]->name,prev->name)==0){
-        indexes[n]=i;
+    for (size_t i = 0; i < curr->size; i++){
+      if(strcmp(curr->children[i]->name,prev->name) == 0){
+        indexes[n] = i;
         break;
       }
     }
@@ -600,16 +603,18 @@ char *hierarchy_get_path_to(const struct oo_hierarchy *self, const char *name) {
   }
 
   total_size++;
-  char *s = malloc(total_size*sizeof(char));
+  char *s = malloc(total_size+1*sizeof(char));
   curr = self->root;
   strcpy(s,curr->name);
 
-  for (int j =n-1 ;  j>=0;j--){
+  for (int j = n-1; j >= 0; j--){
     strcat(s,"/\0");
     strcat(s,curr->children[indexes[j]]->name);
-    curr=curr->children[indexes[j]];
+    curr = curr->children[indexes[j]];
   } 
-	struct tab *z = split_path(s);
+	
+	/*struct tab *z = split_path(s);
+	free(z);*/
 	
   return s;
 }
@@ -631,8 +636,7 @@ void path_print(const struct oo_hierarchy *self,struct oo_class *class, FILE *ou
 	if(class->size > 0){
 		for (size_t i = 0; i < class->size; i++){
     	path_print(self,class->children[i],out);
-    	//fprintf(out,"\n");
-   	}
+		}
 	}
 }
 
@@ -643,7 +647,7 @@ void hierarchy_print(const struct oo_hierarchy *self, FILE *out) {
 	fprintf(out,"\n____HIERARCHY____[%zu]\n",hierarchy_count_classes(self));
  	path_print(self,self->root,out);
 	
-	fprintf(out,"\n_________________\n\n");
+	fprintf(out,"_________________\n\n");
 }
 
 
